@@ -1,5 +1,15 @@
 const backgrounds = ['background.png', 'background2.png'];
 
+// === PAGE FLASH ===
+(function initFlash() {
+    const flash = document.getElementById('page-flash');
+    if (!flash) return;
+    setTimeout(() => {
+        flash.classList.add('fade-out');
+        setTimeout(() => flash.remove(), 600);
+    }, 80);
+})();
+
 // === BACKGROUND ROTATION ===
 (function initBackgrounds() {
     const bg1 = document.getElementById('bg1');
@@ -101,42 +111,87 @@ const backgrounds = ['background.png', 'background2.png'];
 // === MUSIC PLAYER ===
 (function initMusic() {
     const audio = new Audio('song.mp3');
-    audio.volume = 0.45;
     audio.loop = true;
 
-    const slider = document.getElementById('volume-slider');
     const icon = document.querySelector('.volume-icon');
-    let isPlaying = false;
+    const cs = document.getElementById('custom-slider');
+    const fill = document.getElementById('slider-fill');
+    const thumb = document.getElementById('slider-thumb');
+    let isDragging = false;
+    let currentVolume = 45;
+    let started = false;
 
     function setVolume(val) {
-        const v = val / 100;
-        audio.volume = v;
-        icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+        const v = Math.max(0, Math.min(100, Number(val)));
+        currentVolume = v;
+        const pct = v + '%';
+        audio.volume = v / 100;
+        if (fill) fill.style.height = pct;
+        if (thumb) thumb.style.bottom = pct;
+        icon.textContent = v === 0 ? '🔇' : v < 50 ? '🔉' : '🔊';
     }
 
-    slider.addEventListener('input', () => setVolume(slider.value));
-
-    function tryPlay() {
-        audio.play().then(() => { isPlaying = true; }).catch(() => { isPlaying = false; });
+    function getPct(clientY) {
+        const rect = cs.getBoundingClientRect();
+        const y = clientY - rect.top;
+        return Math.max(0, Math.min(100, (1 - y / rect.height) * 100));
     }
 
-    tryPlay();
+    function startPlayback() {
+        if (started) return;
+        started = true;
+        icon.classList.remove('needs-play');
+        audio.play().catch(() => {});
+    }
 
-    document.addEventListener('click', () => {
-        if (!isPlaying) tryPlay();
-    }, { once: true });
+    cs.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        setVolume(getPct(e.clientY));
+        startPlayback();
+    });
 
-    icon.addEventListener('click', () => {
+    document.addEventListener('mousemove', (e) => {
+        if (isDragging) setVolume(getPct(e.clientY));
+    });
+
+    document.addEventListener('mouseup', () => { isDragging = false; });
+
+    cs.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isDragging = true;
+        setVolume(getPct(e.touches[0].clientY));
+        startPlayback();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+        if (isDragging) setVolume(getPct(e.touches[0].clientY));
+    });
+
+    document.addEventListener('touchend', () => { isDragging = false; });
+
+    setVolume(45);
+
+    // Try autoplay — if blocked, show pulsing cue
+    audio.play().then(() => {
+        started = true;
+    }).catch(() => {
+        icon.classList.add('needs-play');
+    });
+
+    // Any click/touch will start playback
+    document.addEventListener('click', startPlayback);
+    document.addEventListener('touchstart', startPlayback, { passive: true });
+
+    icon.addEventListener('click', (e) => {
+        e.stopPropagation();
         if (audio.paused) {
-            audio.play().catch(() => {});
-            setVolume(slider.value);
+            startPlayback();
+            setVolume(currentVolume);
         } else {
             audio.pause();
             icon.textContent = '🔇';
         }
     });
-
-    setVolume(45);
 })();
 
 // === MARKDOWN PARSER ===

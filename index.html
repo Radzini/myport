@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="page-flash"></div>
     <div id="bg1" class="bg-layer"></div>
     <div id="bg2" class="bg-layer"></div>
     <div id="bg-overlay"></div>
@@ -17,7 +18,11 @@
 
     <div id="volume-control">
         <span class="volume-icon">🔊</span>
-        <input type="range" id="volume-slider" min="0" max="100" value="45">
+        <div id="custom-slider">
+            <div id="slider-track-bg"></div>
+            <div id="slider-fill"></div>
+            <div id="slider-thumb"></div>
+        </div>
     </div>
 
     <div id="card">
