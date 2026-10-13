@@ -112,6 +112,8 @@ const backgrounds = ['background.png', 'background2.png'];
 (function initMusic() {
     const audio = new Audio('song.mp3');
     audio.loop = true;
+    audio.autoplay = true;
+    audio.preload = 'auto';
 
     const icon = document.querySelector('.volume-icon');
     const cs = document.getElementById('custom-slider');
@@ -138,10 +140,23 @@ const backgrounds = ['background.png', 'background2.png'];
     }
 
     function startPlayback() {
-        if (started) return;
-        started = true;
-        icon.classList.remove('needs-play');
-        audio.play().catch(() => {});
+        if (started) {
+            // Playing silently because autoplay-with-sound was blocked: unmute on first gesture
+            if (audio.muted) { audio.muted = false; icon.classList.remove('needs-play'); setVolume(currentVolume); }
+            return;
+        }
+        audio.muted = false;
+        audio.play().then(() => {
+            started = true;
+            icon.classList.remove('needs-play');
+        }).catch(() => {
+            // Browser blocked sound: start muted (always allowed), unmute on first interaction
+            audio.muted = true;
+            audio.play().then(() => {
+                started = true;
+                icon.classList.add('needs-play');
+            }).catch(() => icon.classList.add('needs-play'));
+        });
     }
 
     cs.addEventListener('mousedown', (e) => {
@@ -172,15 +187,11 @@ const backgrounds = ['background.png', 'background2.png'];
     setVolume(45);
 
     // Try autoplay — if blocked, show pulsing cue
-    audio.play().then(() => {
-        started = true;
-    }).catch(() => {
-        icon.classList.add('needs-play');
-    });
+    startPlayback();
 
     // Any click/touch will start playback
-    document.addEventListener('click', startPlayback);
-    document.addEventListener('touchstart', startPlayback, { passive: true });
+    ['click', 'keydown', 'pointerdown', 'wheel'].forEach(ev => document.addEventListener(ev, startPlayback, { passive: true }));
+    document.addEventListener('touchstart', startPlayback, { passive: true, once: false });
 
     icon.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -198,8 +209,15 @@ const backgrounds = ['background.png', 'background2.png'];
 function parseMarkdown(text) {
     const lines = text.trim().split('\n');
     let html = '';
+    let inList = false;
     for (const line of lines) {
         const trimmed = line.trim();
+        if (trimmed.startsWith('- ')) {
+            if (!inList) { html += '<ul>'; inList = true; }
+            html += `<li>${parseInline(escHtml(trimmed.slice(2)))}</li>`;
+            continue;
+        }
+        if (inList) { html += '</ul>'; inList = false; }
         if (trimmed.startsWith('### ')) {
             html += `<h3>${parseInline(escHtml(trimmed.slice(4)))}</h3>`;
         } else if (trimmed.startsWith('## ')) {
@@ -212,6 +230,7 @@ function parseMarkdown(text) {
             html += `<p>${parseInline(escHtml(trimmed))}</p>`;
         }
     }
+    if (inList) html += '</ul>';
     return html;
 }
 
@@ -224,7 +243,8 @@ function parseInline(str) {
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/__(.+?)__/g, '<u>$1</u>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+        .replace(/(^|\s)(https?:\/\/[^\s<]+)/g, '$1<a class="raw-url" href="$2" target="_blank" rel="noopener">$2</a>');
 }
 
 // === SPA NAVIGATION ===
@@ -242,6 +262,7 @@ function parseInline(str) {
             btn.classList.toggle('active', btn.dataset.page === page);
         });
     }
+    window.renderPage = loadPage;
 
     navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
