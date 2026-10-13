@@ -542,3 +542,11 @@ body { align-items: flex-start; min-height: 100dvh; overflow-x: hidden; overflow
     font-size: clamp(9px, 1.85cqw, 13px); overflow-x: auto; scrollbar-width: none;
 }
 #content-box a.raw-url::-webkit-scrollbar { display: none; }
+
+/* --- centering + wider card --- */
+body { display: block; }
+#card { width: min(100%, 1180px); margin: 22px auto 40px; grid-template-columns: 310px minmax(0, 1fr); }
+
+@media (max-width: 760px) {
+    #card { margin: 0 auto 28px; grid-template-columns: 1fr; }
+}
